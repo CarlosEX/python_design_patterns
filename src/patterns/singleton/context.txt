@@ -1,0 +1,140 @@
+https://python-patterns.guide/gang-of-four/singleton/
+
+• Página Inicial •
+
+O Padrão Singleton¶
+Um "Padrão de Criação" do livro Gangue dos Quatro
+
+Veredicto
+
+Programadores Python quase nunca implementam o Singleton Pattern como descrito no livro Gangue dos Quatro, cuja classe Singleton proíbe a instanciação normal e, em vez disso, oferece um método de classe que retorna a instância singleton. Python é mais elegante, e permite que uma classe continue a oferecer suporte à sintaxe normal para instanciação ao definir um método personalizado que retorna a instância singleton. Mas uma abordagem ainda mais pythonica, se o seu design o obrigar a oferecer acesso global a um objeto singleton, em vez disso, deve usar O Padrão de Objeto Global.__new__()
+
+Desambiguação¶
+Python já estava usando o termo singleton antes do "Singleton Pattern" ser definido por a comunidade de padrões de design orientada a objetos. Portanto, devemos começar distinguindo os vários significados. de "singleton" em Python.
+
+Uma tupla de comprimento é chamada de singleton. Embora essa definição possa surpreender alguns programadores, reflete a definição original de um singleton em matemática: um conjunto contendo exatamente um elemento. O próprio Tutorial Python apresenta aos recém-chegados essa definição quando seu capítulo sobre Estruturas de Dados chama uma tupla de um elemento de "singleton" e a palavra continua a ser usada nesse sentido através do resto da documentação do Python. Quando o guia Estendendo e incorporando diz: "Para chamar a função Python ... com um argumento, passe uma tupla singleton", significa uma tupla contendo exatamente um item.
+Os módulos são "singletons" em Python porque cria apenas uma única cópia de cada módulo; importações subsequentes do mesmo nome continuam retornando o mesmo objeto de módulo. Por exemplo quando o capítulo Module Objects do Manual de Referência da API Python/C afirma que "A inicialização monofásica cria módulos singleton", significa por um "módulo singleton" um módulo para o qual apenas um objeto é criado.import
+Um "singleton" é uma instância de classe que recebeu um nome global por meio do Padrão de Objeto Global. Por exemplo, o FAQ oficial de programação Python responde à pergunta "Como faço para compartilhar variáveis globais entre módulos?" com a afirmação de que em Python "o uso de um módulo também é a base para a implementação do projeto Singleton" — porque não só o namespace global de um módulo pode armazenar constantes (o exemplo do FAQ é compartilhado entre vários módulos), mas instâncias de classe mutáveis também.x = 0
+Objetos individuais de peso mosca que são exemplos de The Flyweight Pattern são frequentemente chamados de objetos "singleton" por programadores Python. Por exemplo, um comentário dentro da Biblioteca Padrão afirma que "a tupla vazia do CPython é um singleton" — o que significa que o interpretador Python cria apenas um único objeto de tupla vazio, que retorna uma e outra vez toda vez que passa uma sequência de comprimento zero. Um comentário em refere-se similarmente para o "singleton congelado vazio". Mas nenhum desses objetos singleton é um exemplo do Padrão Singleton da Gangue dos Quatro, porque nenhum objeto é a única instância de sua classe: permite que você construa outras tuplas além da tupla vazia, e permite que você construa outros conjuntos congelados. Da mesma forma, os objetos e são um par de pesos-moscas, não exemplos do Padrão Singleton, porque nenhum dos dois é o único exemplo de .itertoolsmodule.ctuple()marshal.ctuplefrozensetTrueFalsebool
+Finalmente, programadores Python em algumas raras ocasiões realmente significa "O Padrão Singleton" quando eles chamam um objeto de "singleton": o objeto solitário retornado por sua classe toda vez que a classe é chamada.
+A Biblioteca Padrão Python 2 não incluiu exemplos do Padrão Singleton. Embora tenha apresentado objetos singleton como e , a linguagem forneceu acesso a eles através do mais Pythonic Global Object Pattern, dando-lhes nomes no módulo. Mas suas aulas não eram exigíveis:NoneEllipsis__builtin__
+
+>>> type(None)
+<type 'NoneType'>
+>>> NoneType = type(None)
+>>> NoneType()
+TypeError: cannot create 'NoneType' instances
+>>> type(Ellipsis)()
+TypeError: cannot create 'ellipsis' instances
+No Python 3, no entanto, as classes foram atualizadas para usar o Singleton Pattern:
+
+>>> NoneType = type(None)
+>>> print(NoneType())
+None
+>>> type(Ellipsis)()
+Ellipsis
+Isso facilita a vida dos programadores que precisam de um chamável rápido que sempre retorna , embora tais ocasiões sejam raras. Na maioria dos projetos Python, essas classes nunca são chamadas e o benefício permanece puramente teórico. Quando os programadores Python precisam do objeto eles usam O Padrão de Objeto Global e simplesmente digitam seu nome.NoneNone
+
+A implementação da Gangue dos Quatro¶
+A linguagem C++ que a Gangue dos Quatro estava mirando impôs uma sintaxe distinta na criação de objetos, que parecia algo como:
+
+# Object creation in a language
+# that has a “new” keyword.
+
+log = new Logger()
+Uma linha de C++ que diz sempre cria uma nova instância de classe — ele nunca retorna um singleton. Na presença desta sintaxe especial, Quais eram suas opções para oferecer objetos singleton?new
+
+A Gangue dos Quatro não tomou o caminho mais fácil e use O Padrão de Objeto Global porque ele não funcionou particularmente bem em versões anteriores da linguagem C++. Lá, todos os nomes globais compartilhavam um único namespace global lotado, então elaboradas convenções de nomenclatura eram necessárias para impedir que nomes de bibliotecas diferentes colidam. A Gangue julgou que a adição de uma classe e sua instância singleton para o namespace global lotado seria excessivo. E como os programadores C++ não podiam controlar a ordem em que objetos globais foram inicializados, nenhum objeto global poderia depender de ser capaz de chamar qualquer outro, por isso a responsabilidade de inicializar globals muitas vezes caía no código do cliente.
+Não havia como substituir o significado de em C++, portanto, uma sintaxe alternativa era necessária se todos os clientes recebessem o mesmo objeto. Era, no entanto, pelo menos possível torná-lo um erro de tempo de compilação para que o código do cliente chame marcando o construtor de classe como um ou .newnewprotectedprivate
+Assim, a Gangue dos Quatro girou para um método de classe. que retornaria o objeto singleton da classe. Ao contrário de uma função global, um método de classe evitou adicionar mais um nome ao namespace global, e, ao contrário de um método estático, ele poderia suportar subclasses que eram singletons também.
+Como o código Python poderia ilustrar sua abordagem? Python não tem as complicações de , , e . Uma alternativa é criar uma exceção para tornar impossível a instanciação normal do objeto. O método de classe pode então usar um truque de método dunder para criar o objeto sem disparar a exceção:newprotectedprivate__init__()
+
+# What the Gang of Four’s original Singleton Pattern
+# might look like in Python.
+
+class Logger(object):
+    _instance = None
+
+    def __init__(self):
+        raise RuntimeError('Call instance() instead')
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            print('Creating new instance')
+            cls._instance = cls.__new__(cls)
+            # Put any initialization here.
+        return cls._instance
+Isso impede com êxito que os clientes de criar novas instâncias chamando a classe:
+
+log = Logger()
+Traceback (most recent call last):
+  ...
+RuntimeError: Call instance() instead
+Em vez disso, os chamadores são instruídos a usar o método de classe, que cria e retorna um objeto:instance()
+
+log1 = Logger.instance()
+print(log1)
+Creating new instance
+<Logger object at 0x7f0ff5e7c080>
+Chamadas subsequentes para retornar o singleton sem repetir a etapa de inicialização (como podemos ver pelo fato de que "Criando nova instância" não é impresso novamente), exatamente como a Gangue dos Quatro pretendia:instance()
+
+log2 = Logger.instance()
+print(log2)
+print('Are they the same object?', log1 is log2)
+<Logger object at 0x7f0ff5e7c080>
+Are they the same object? True
+Existem esquemas mais complicados que eu posso imaginar para implementar o método original da classe Gang of Four em Python, mas eu acho que o exemplo acima faz o melhor trabalho de ilustrar o esquema original com o mínimo de magia possível. Como o padrão da Gangue dos Quatro não é um bom ajuste para Python de qualquer maneira, Resistirei à tentação de iterá-lo ainda mais, e, em vez disso, passe para como o padrão é melhor suportado em Python.
+
+Uma implementação mais pythonic¶
+Em certo sentido, Python começou melhor preparado do que C ++ para o Singleton Pattern, porque Python não tem uma palavra-chave que força um novo objeto a ser criado. Em vez disso, os objetos são criados invocando um chamável, que não impõe nenhuma limitação sintática em que operação o chamável realmente executa:new
+
+log = Logger()
+Para permitir que os autores assumam o controle das chamadas para uma classe, Python 2.4 adicionou o método dunder para apoiar padrões criacionais alternativos como o Padrão Singleton e o Padrão Peso Mosca.__new__()
+
+A Web está repleta de receitas do Singleton Pattern que caracterizam que cada uma propõe um mecanismo mais ou menos complicado para contornar a maior peculiaridade do método: o fato de que sempre é chamado no valor de retorno, se o objeto que está sendo retornado é novo ou não. Para tornar o meu próprio exemplo simples, Eu simplesmente não vou definir um método e, assim, evitar ter que contornar isso:__new__()__init__()__init__()
+
+# Straightforward implementation of the Singleton Pattern
+
+class Logger(object):
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            print('Creating the object')
+            cls._instance = super(Logger, cls).__new__(cls)
+            # Put any initialization here.
+        return cls._instance
+O objeto é criado na primeira chamada para a classe:
+
+log1 = Logger()
+print(log1)
+Creating the object
+<Logger object at 0x7fa8e9cf7f60>
+Mas a segunda chamada retorna a mesma instância. A mensagem "Criando o objeto" não é impressa, nem um objeto diferente é retornado:
+
+log2 = Logger()
+print(log2)
+print('Are they the same object?', log1 is log2)
+<Logger object at 0x7fa8e9cf7f60>
+Are they the same object? True
+O exemplo acima opta pela simplicidade, à custa de fazer a pesquisa de atributo duas vezes no caso comum. Para os programadores que se encolhem diante de tais desperdícios, o resultado pode, naturalmente, ser atribuído um nome e reutilizado na instrução return. E várias outras melhorias podem ser imaginadas isso resultaria em bytecode mais rápido. Mas, por mais elaboradamente ajustado que seja, o padrão acima é a base de cada classe Python que oculta um objeto singleton por trás do que se lê como instanciação de classe normal.cls._instance
+
+Veredicto¶
+Enquanto o Padrão Singleton original da Gangue dos Quatro é um ajuste ruim para uma linguagem como Python que carece dos conceitos de , , e , não é tão fácil descartar o padrão quando ele é construído em cima – afinal, singletons eram parte da razão o método dunder foi introduzido!newprivateprotected__new__()__new__()
+
+Mas o Padrão Singleton em Python sofre de várias desvantagens.
+
+Uma primeira objeção é que a implementação do Padrão Singleton é difícil para muitos programadores Python lerem. O Padrão de Objeto Global alternativo é fácil de ler: é simplesmente a declaração de atribuição familiar, colocado no nível superior de um módulo. Mas um programador Python lendo um método pela primeira vez provavelmente terá que parar e procurar documentação para entender o que está acontecendo.__new__()
+
+Uma segunda objeção é que o Padrão Singleton faz chamadas para a classe, como , enganoso para os leitores. A menos que o designer tenha colocado "Singleton" ou alguma outra dica no nome da classe, e o leitor conhece padrões de design bem o suficiente para entender a dica, o código será lido como se uma nova instância estivesse sendo criada e retornada.Logger()
+
+Uma terceira objeção é que o Padrão Singleton força um compromisso de design que o Padrão de Objeto Global não faz. Oferecer um objeto global ainda deixa um programador livre para criar outras instâncias da classe — que podem ser particularmente úteis para os ensaios, permitindo que cada um deles teste um objeto completamente separado sem a necessidade de redefinir um objeto compartilhado de volta a um estado em boas condições. Mas o Padrão Singleton torna instâncias adicionais impossíveis. (A menos que o chamador esteja disposto a se inclinar para o patch de macaco; ou modificando temporariamente para subverter a lógica em ; ou criar uma subclasse que substitua o método. Mas um padrão que você tem que contornar geralmente é um padrão que você deve evitar.)_instance__new__()
+
+Por que, então, você usaria o Singleton Pattern em Python?
+
+A única situação que realmente exigiria o padrão seria uma classe existente que, devido a um novo requisito, agora funcionará melhor como uma única instância. Se não for possível migrar todo o código do cliente para parar de chamar a classe diretamente e comece a usar um objeto global, então o Padrão Singeton seria uma abordagem natural para girar para um singleton, preservando a sintaxe antiga.
+
+Mas, caso contrário, o padrão é melhor evitado a favor de seguir o conselho do Python FAQ oficial e usando o The Global Object Pattern.
+
+© Brandon Rhodes 2018–2020
